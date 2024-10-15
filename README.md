@@ -1,5 +1,7 @@
 # splt
 
+> Note: This experimental tool is not officially supported by Ariga or Atlas and is provided as-is.
+
 A small command tool to split an Atlas HCL schema file into multiple files.
 
 Supported strategies:
@@ -17,13 +19,16 @@ Split a file:
 ```bash
 # split by schema
 splt schema.hcl out/
-
-# split by block
-splt schema.hcl out/ --strategy=block
+```
+Verify output is correct:
+```bash
+atlas schema diff --dev-url docker://postgres/16/dev --from file://schema.hcl --to file://out/
 ````
-  
 
-
+Output:
+```
+Schemas are synced, no changes to be made.
+```
 
 ## Usage
 
