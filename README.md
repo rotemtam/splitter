@@ -28,7 +28,7 @@ splt schema.hcl out/ --strategy=block
 ## Usage
 
 ```
-Usage: splitter <source> <dst-dir> [flags]
+Usage: splt <source> <dst-dir> [flags]
 
 Arguments:
   <source>     Source HCL file to split.
