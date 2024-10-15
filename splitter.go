@@ -16,7 +16,7 @@ type (
 	input struct {
 		Source   string `arg:"" type:"existingfile" help:"Source HCL file to split."`
 		DstDir   string `arg:"" type:"existingdir" help:"Destination directory to write the split files."`
-		Strategy string `help:"Splitting strategy" enum:"schema,block" default:"schema"`
+		Strategy string `help:"Splitting strategy options:schema,block default:schema" enum:"schema,block" default:"schema"`
 	}
 	splitter func(*hcl.File) map[string][]*hclsyntax.Block
 )
