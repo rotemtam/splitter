@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 type (
@@ -17,7 +18,7 @@ type (
 		DstDir   string `arg:"" type:"existingdir" help:"Destination directory to write the split files."`
 		Strategy string `help:"Splitting strategy" enum:"schema,block" default:"schema"`
 	}
-	splitter func(*hcl.File) (map[string][]*hclsyntax.Block, error)
+	splitter func(*hcl.File) map[string][]*hclsyntax.Block
 )
 
 // Run split and return the exit code.
@@ -35,6 +36,8 @@ func (i input) splitter() splitter {
 	switch i.Strategy {
 	case "schema":
 		return splitSchema
+	case "block":
+		return splitBlock
 	default:
 		return nil
 	}
@@ -50,11 +53,7 @@ func split(i input) error {
 	if splitFn == nil {
 		return fmt.Errorf("unknown splitting strategy %s", i.Strategy)
 	}
-	schemaBlocks, err := splitSchema(file)
-	if err != nil {
-		return err
-	}
-	for f, blocks := range schemaBlocks {
+	for f, blocks := range splitFn(file) {
 		outputPath := filepath.Join(i.DstDir, f)
 		if err := writeFile(blocks, file, outputPath); err != nil {
 			return err
@@ -63,7 +62,7 @@ func split(i input) error {
 	return nil
 }
 
-func splitSchema(file *hcl.File) (map[string][]*hclsyntax.Block, error) {
+func splitSchema(file *hcl.File) map[string][]*hclsyntax.Block {
 	schemaBlocks := make(map[string][]*hclsyntax.Block)
 	noSchema := []*hclsyntax.Block{}
 	body := file.Body.(*hclsyntax.Body)
@@ -94,41 +93,20 @@ func splitSchema(file *hcl.File) (map[string][]*hclsyntax.Block, error) {
 	if len(noSchema) > 0 {
 		output["main.hcl"] = noSchema
 	}
-	return output, nil
+	return output
 }
 
-func writeFile(blocks []*hclsyntax.Block, file *hcl.File, outputPath string) error {
-	f := hclwrite.NewEmptyFile()
-	rootBody := f.Body()
-
-	for _, block := range blocks {
-		hclBlock := hclwrite.NewBlock(block.Type, block.Labels)
-		rootBody.AppendBlock(hclBlock)
-
-		// Manually reconstruct the block body
-		input := file.Bytes
-		for attrName, attr := range block.Body.Attributes {
-			exprTokens := attr.Expr.Range().SliceBytes(input)
-			hclBlock.Body().SetAttributeRaw(attrName, hclwrite.TokensForTraversal(hcl.Traversal{
-				hcl.TraverseRoot{Name: string(exprTokens)},
-			}))
+func splitBlock(file *hcl.File) map[string][]*hclsyntax.Block {
+	body := file.Body.(*hclsyntax.Body)
+	output := make(map[string][]*hclsyntax.Block)
+	for _, block := range body.Blocks {
+		fname := block.Type + ".hcl"
+		if _, ok := output[fname]; !ok {
+			output[fname] = []*hclsyntax.Block{}
 		}
-		// Manually reconstruct nested blocks
-		for _, nestedBlock := range block.Body.Blocks {
-			nestedHCLBlock := hclwrite.NewBlock(nestedBlock.Type, nestedBlock.Labels)
-			hclBlock.Body().AppendBlock(nestedHCLBlock)
-			for attrName, attr := range nestedBlock.Body.Attributes {
-				exprTokens := attr.Expr.Range().SliceBytes(input)
-				nestedHCLBlock.Body().SetAttributeRaw(attrName, hclwrite.TokensForTraversal(hcl.Traversal{
-					hcl.TraverseRoot{Name: string(exprTokens)},
-				}))
-			}
-		}
+		output[fname] = append(output[fname], block)
 	}
-	if err := os.WriteFile(outputPath, f.Bytes(), 0644); err != nil {
-		return err
-	}
-	return nil
+	return output
 }
 
 func detectSchema(body *hclsyntax.Body) (string, bool) {
@@ -143,4 +121,35 @@ func detectSchema(body *hclsyntax.Body) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func writeFile(blocks []*hclsyntax.Block, file *hcl.File, outputPath string) error {
+	f := hclwrite.NewEmptyFile()
+	rootBody := f.Body()
+	src := file.Bytes
+	var writeBlock func(*hclwrite.Body, *hclsyntax.Block)
+	writeBlock = func(body *hclwrite.Body, block *hclsyntax.Block) {
+		hclBlock := body.AppendNewBlock(block.Type, block.Labels)
+		blockBody := hclBlock.Body()
+		var attrs []*hclsyntax.Attribute
+		for _, attr := range block.Body.Attributes {
+			attrs = append(attrs, attr)
+		}
+		sort.Slice(attrs, func(i, j int) bool {
+			return attrs[i].NameRange.Start.Byte < attrs[j].NameRange.Start.Byte
+		})
+		for _, attr := range attrs {
+			exprTokens := attr.Expr.Range().SliceBytes(src)
+			blockBody.SetAttributeRaw(attr.Name, hclwrite.Tokens{
+				{Type: hclsyntax.TokenIdent, Bytes: exprTokens},
+			})
+		}
+		for _, nestedBlock := range block.Body.Blocks {
+			writeBlock(blockBody, nestedBlock)
+		}
+	}
+	for _, block := range blocks {
+		writeBlock(rootBody, block)
+	}
+	return os.WriteFile(outputPath, f.Bytes(), 0644)
 }

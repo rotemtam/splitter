@@ -5,7 +5,6 @@ cmp output/schema_public.hcl schema.hcl
 schema "public" {
   comment = "This is the hello schema"
 }
-
 table "users" {
   schema = schema.public
   column "id" {
@@ -21,7 +20,7 @@ table "users" {
   }
   new_block {
     extra {
-       key = "value"
+      key = "value"
     }
   }
 }

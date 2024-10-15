@@ -1,0 +1,50 @@
+exec mkdir output
+splitter --strategy=block schema.hcl output
+
+cmp output/schema.hcl golden/schema.hcl
+cmp output/table.hcl golden/table.hcl
+cmp output/trigger.hcl golden/trigger.hcl
+-- schema.hcl --
+schema "public" {
+}
+table "t1" {
+  schema = schema.public
+  column "id" {
+    type = int
+  }
+}
+table "t2" {
+  schema = schema.public
+  column "id" {
+    type = int
+  }
+}
+trigger "t1_trigger" {
+  table = table.t1
+  event = "insert"
+  function = "f1"
+  action = "execute procedure"
+}
+-- golden/schema.hcl --
+schema "public" {
+}
+-- golden/table.hcl --
+table "t1" {
+  schema = schema.public
+  column "id" {
+    type = int
+  }
+}
+table "t2" {
+  schema = schema.public
+  column "id" {
+    type = int
+  }
+}
+-- golden/trigger.hcl --
+trigger "t1_trigger" {
+  table    = table.t1
+  event    = "insert"
+  function = "f1"
+  action   = "execute procedure"
+}
