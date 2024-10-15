@@ -25,7 +25,7 @@ jobs:
 
       # Set up Atlas using the setup-atlas action
       - name: Setup Atlas
-        uses: ariga/setup-atlas@v1
+        uses: ariga/setup-atlas@v0
 
       # Run Go tests
       - name: Run tests
