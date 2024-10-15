@@ -1,5 +1,5 @@
 exec mkdir output
-splitter --strategy=block schema.hcl output
+splt --strategy=block schema.hcl output
 
 cmp output/schema.hcl golden/schema.hcl
 cmp output/table.hcl golden/table.hcl

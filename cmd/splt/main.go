@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/rotemtam/splitter"
+	"github.com/rotemtam/splt"
 	"os"
 )
 

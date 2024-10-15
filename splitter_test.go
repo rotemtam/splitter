@@ -8,7 +8,7 @@ import (
 
 func TestMain(m *testing.M) {
 	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"splitter": Run,
+		"splt": Run,
 	}))
 }
 

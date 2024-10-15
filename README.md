@@ -1,19 +1,25 @@
-# splitter
+# splt
+
+A small command tool to split an Atlas HCL schema file into multiple files.
+
+Supported strategies:
+- `schema`: split by schema: each schema is written to a separate file.
+- `block`: split by block: each block type is written to a separate file.
 
 ## Quickstart
 
 Install:
 ```bash
-go install github.com/rotemtam/splitter/cmd/splitter
+go install github.com/rotemtam/splt/cmd/splt
 ```
 
 Split a file:
 ```bash
 # split by schema
-splitter schema.hcl out/
+splt schema.hcl out/
 
 # split by block
-splitter schema.hcl out/ --strategy=block
+splt schema.hcl out/ --strategy=block
 ````
   
 

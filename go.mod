@@ -1,4 +1,4 @@
-module github.com/rotemtam/splitter
+module github.com/rotemtam/splt
 
 go 1.23.0
 
