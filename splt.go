@@ -18,7 +18,7 @@ type (
 		DstDir   string `arg:"" type:"existingdir" help:"Destination directory to write the split files."`
 		Strategy string `help:"Splitting strategy options:schema,block default:schema" enum:"schema,block" default:"schema"`
 	}
-	splitter func(*hcl.File) map[string][]*hclsyntax.Block
+	strategy func(*hcl.File) map[string][]*hclsyntax.Block
 )
 
 // Run split and return the exit code.
@@ -32,7 +32,7 @@ func Run() int {
 	return 0
 }
 
-func (i input) splitter() splitter {
+func (i input) strategy() strategy {
 	switch i.Strategy {
 	case "schema":
 		return splitSchema
@@ -49,7 +49,7 @@ func split(i input) error {
 	if diags != nil && diags.HasErrors() {
 		return diags
 	}
-	splitFn := i.splitter()
+	splitFn := i.strategy()
 	if splitFn == nil {
 		return fmt.Errorf("unknown splitting strategy %s", i.Strategy)
 	}
