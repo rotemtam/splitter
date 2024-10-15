@@ -1,0 +1,27 @@
+exec mkdir output
+splitter schema.hcl output
+cmp output/schema_public.hcl schema.hcl
+-- schema.hcl --
+schema "public" {
+  comment = "This is the hello schema"
+}
+
+table "users" {
+  schema = schema.public
+  column "id" {
+    type = int
+  }
+  column "name" {
+    type = text
+  }
+  primary_key {
+    columns = [
+      column.id
+    ]
+  }
+  new_block {
+    extra {
+       key = "value"
+    }
+  }
+}
