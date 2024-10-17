@@ -1,0 +1,17 @@
+exec mkdir output
+stdin schema.hcl
+splt -o output
+
+cmp golden/schema_public.hcl output/schema_public.hcl
+cmp golden/schema_hello.hcl output/schema_hello.hcl
+-- schema.hcl --
+schema "public" {
+}
+schema "hello" {
+}
+-- golden/schema_public.hcl --
+schema "public" {
+}
+-- golden/schema_hello.hcl --
+schema "hello" {
+}

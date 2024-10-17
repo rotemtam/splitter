@@ -1,5 +1,5 @@
 exec mkdir output
-splt schema.hcl output
+splt -i schema.hcl -o output
 
 exec atlas schema inspect --dev-url docker://postgres/16/dev --url file://output/
 

@@ -1,0 +1,6 @@
+mkdir output
+! splt -o output
+stderr 'splt: no input provided, provide input via stdin or -i flag'
+
+! splt -i schema.hcl -o output
+stderr 'no such file or directory'

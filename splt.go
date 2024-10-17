@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,9 +15,9 @@ import (
 
 type (
 	input struct {
-		Source   string `arg:"" type:"existingfile" help:"Source HCL file to split."`
-		DstDir   string `arg:"" type:"existingdir" help:"Destination directory to write the split files."`
-		Strategy string `help:"Splitting strategy options:schema,block default:schema" enum:"schema,block" default:"schema"`
+		Input    string `short:"i" help:"Input HCL file to split." type:"existingfile" optional:""`
+		Output   string `short:"o" placeholder:"./path/to/dir" required:"" help:"Destination directory to write the split files." type:"existingdir"`
+		Strategy string `help:"Splitting strategy options:schema,block" enum:"schema,block" default:"schema"`
 	}
 	strategy func(*hcl.File) map[string][]*hclsyntax.Block
 )
@@ -26,7 +27,7 @@ func Run() int {
 	var cli input
 	kong.Parse(&cli)
 	if err := split(cli); err != nil {
-		fmt.Printf("Error splitting HCL: %s\n", err)
+		fmt.Fprintf(os.Stderr, "splt: %s\n", err)
 		return 1
 	}
 	return 0
@@ -45,7 +46,26 @@ func (i input) strategy() strategy {
 
 func split(i input) error {
 	parse := hclparse.NewParser()
-	file, diags := parse.ParseHCLFile(i.Source)
+	var (
+		file  *hcl.File
+		diags hcl.Diagnostics
+	)
+	if i.Input != "" {
+		file, diags = parse.ParseHCLFile(i.Input)
+	} else {
+		stat, err := os.Stdin.Stat()
+		if err != nil || (stat.Mode()&os.ModeCharDevice) != 0 {
+			return fmt.Errorf("no input file provided")
+		}
+		all, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("reading stdin: %w", err)
+		}
+		if len(all) == 0 {
+			return fmt.Errorf("no input provided, provide input via stdin or -i flag")
+		}
+		file, diags = parse.ParseHCL(all, "stdin.hcl")
+	}
 	if diags != nil && diags.HasErrors() {
 		return diags
 	}
@@ -54,7 +74,7 @@ func split(i input) error {
 		return fmt.Errorf("unknown splitting strategy %s", i.Strategy)
 	}
 	for f, blocks := range splitFn(file) {
-		outputPath := filepath.Join(i.DstDir, f)
+		outputPath := filepath.Join(i.Output, f)
 		if err := writeFile(blocks, file, outputPath); err != nil {
 			return err
 		}
