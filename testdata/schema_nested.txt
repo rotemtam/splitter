@@ -1,5 +1,5 @@
 exec mkdir output
-splt schema.hcl output
+splt -i schema.hcl -o output
 cmp output/schema_public.hcl schema.hcl
 -- schema.hcl --
 schema "public" {
