@@ -76,26 +76,19 @@ func split(i input) error {
 	if splitFn == nil {
 		return fmt.Errorf("unknown splitting strategy %s", i.Strategy)
 	}
-
-	// Get all files that need to be created
 	files := splitFn(file)
-
-	// First create all necessary directories
 	for fileName := range files {
 		dir := filepath.Dir(filepath.Join(i.Output, fileName))
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)
 		}
 	}
-
-	// Then write all files
 	for fileName, blocks := range files {
 		outputPath := filepath.Join(i.Output, fileName)
 		if err := writeFile(blocks, file, outputPath); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -104,14 +97,12 @@ func splitSchema(file *hcl.File) map[string][]*hclsyntax.Block {
 	noSchema := []*hclsyntax.Block{}
 	body := file.Body.(*hclsyntax.Body)
 	var schemas []*hclsyntax.Block
-	// Detect all schemas.
 	for _, block := range body.Blocks {
 		if block.Type == "schema" {
 			schemas = append(schemas, block)
 			schemaBlocks[block.Labels[0]] = []*hclsyntax.Block{block}
 		}
 	}
-	// Arrange all blocks by schema, placing those without a schema in a separate slice.
 	for _, block := range body.Blocks {
 		if block.Type == "schema" {
 			continue
