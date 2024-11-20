@@ -85,13 +85,10 @@ func cmpDirs(dir1, dir2 string) error {
 // sortedFiles returns a sorted slice of file paths for all files (including in subdirectories) of a directory
 func sortedFiles(dir string) ([]string, error) {
 	var files []string
-
-	// Walk the directory and collect file paths
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		// Check if it's a file
 		if !info.IsDir() {
 			files = append(files, path)
 		}
@@ -100,9 +97,6 @@ func sortedFiles(dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Sort the files
 	sort.Strings(files)
-
 	return files, nil
 }
