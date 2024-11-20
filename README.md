@@ -9,6 +9,8 @@ Accepts input schema via a file or stdin and writes the split files to a directo
 Supported strategies:
 - `schema`: split by schema: each schema is written to a separate file.
 - `block`: split by block: each block type is written to a separate file.
+- `resource`: split to file per resource. each schema is written to a separate dir, with resources organized by types
+  into separate directories.
 
 ## Quickstart
 
@@ -42,5 +44,5 @@ Flags:
   -h, --help                    Show context-sensitive help.
   -i, --input=STRING            Input HCL file to split.
   -o, --output=./path/to/dir    Destination directory to write the split files.
-      --strategy="schema"       Splitting strategy options:schema,block
+      --strategy="schema"       Splitting strategy options:schema,block,resource
 ```

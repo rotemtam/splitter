@@ -1,5 +1,5 @@
 exec mkdir output
-splt -i schema.hcl -o output --strategy=breakdown
+splt -i schema.hcl -o output --strategy=resource
 
 exec echo $HOME
 

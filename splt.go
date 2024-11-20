@@ -17,7 +17,7 @@ type (
 	input struct {
 		Input    string `short:"i" help:"Input HCL file to split." type:"existingfile" optional:""`
 		Output   string `short:"o" placeholder:"./path/to/dir" required:"" help:"Destination directory to write the split files." type:"existingdir"`
-		Strategy string `help:"Splitting strategy options:schema,block" enum:"schema,block,breakdown" default:"schema"`
+		Strategy string `help:"Splitting strategy options:schema,block" enum:"schema,block,resource" default:"schema"`
 	}
 	strategy func(*hcl.File) map[string][]*hclsyntax.Block
 )
@@ -39,8 +39,8 @@ func (i input) strategy() strategy {
 		return splitSchema
 	case "block":
 		return splitBlock
-	case "breakdown":
-		return splitBreakdown
+	case "resource":
+		return splitResource
 	default:
 		return nil
 	}
@@ -182,7 +182,7 @@ func writeFile(blocks []*hclsyntax.Block, file *hcl.File, outputPath string) err
 	return os.WriteFile(outputPath, f.Bytes(), 0644)
 }
 
-func splitBreakdown(file *hcl.File) map[string][]*hclsyntax.Block {
+func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
 	body := file.Body.(*hclsyntax.Body)
 
 	schemaBlocks := make(map[string]*hclsyntax.Block)
