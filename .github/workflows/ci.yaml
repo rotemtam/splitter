@@ -20,6 +20,6 @@ jobs:
       - name: Setup Atlas
         uses: ariga/setup-atlas@v0
         with:
-          atlas-token: ${{ secrets.ATLAS_TOKEN }}
+          cloud-token: ${{ secrets.ATLAS_TOKEN }}
       - name: Run tests
         run: go test ./...
