@@ -1,0 +1,21 @@
+cmpdir d1 d2
+! cmpdir missing d1
+! cmpdir wrongcont d1
+-- d1/hello.txt --
+Hello
+-- d1/world.txt --
+World
+-- d1/nest/hello.txt --
+Hello
+-- d2/hello.txt --
+Hello
+-- d2/world.txt --
+World
+-- d2/nest/hello.txt --
+Hello
+-- missing/hello.txt --
+Hello
+-- wrongcont/hello.txt --
+X
+-- wrongcont/world.txt --
+Y

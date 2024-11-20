@@ -1,0 +1,109 @@
+exec mkdir output
+splt -i schema.hcl -o output --strategy=breakdown
+
+exec echo $HOME
+
+exec tree output
+
+exec atlas schema diff --env output --from file://schema.hcl --to env://schema.src
+stdout 'Schemas are synced'
+
+cmpdir output/ golden/
+-- schema.hcl --
+schema "public" {
+  comment = "This is the public schema"
+}
+schema "hello" {
+  comment = "This is the hello schema"
+}
+table "users" {
+  schema = schema.public
+  column "id" {
+    type = int
+  }
+  column "name" {
+    type = text
+  }
+  primary_key {
+    columns = [
+      column.id
+    ]
+  }
+}
+function "positive" {
+  schema = schema.public
+  lang   = SQL
+  arg "v" {
+    type = integer
+  }
+  return = boolean
+  as     = "SELECT v > 0"
+}
+table "transactions" {
+  schema = schema.hello
+  column "id" {
+    type = int
+  }
+  column "user_id" {
+    type = int
+  }
+  column "amount" {
+    type = decimal
+  }
+}
+-- golden/schema_public/schema.hcl --
+schema "public" {
+  comment = "This is the public schema"
+}
+-- golden/schema_public/tables/users.hcl --
+table "users" {
+  schema = schema.public
+  column "id" {
+    type = int
+  }
+  column "name" {
+    type = text
+  }
+  primary_key {
+    columns = [
+      column.id
+    ]
+  }
+}
+-- golden/schema_public/functions/positive.hcl --
+function "positive" {
+  schema = schema.public
+  lang   = SQL
+  return = boolean
+  as     = "SELECT v > 0"
+  arg "v" {
+    type = integer
+  }
+}
+-- golden/schema_hello/schema.hcl --
+schema "hello" {
+  comment = "This is the hello schema"
+}
+-- golden/schema_hello/tables/transactions.hcl --
+table "transactions" {
+  schema = schema.hello
+  column "id" {
+    type = int
+  }
+  column "user_id" {
+    type = int
+  }
+  column "amount" {
+    type = decimal
+  }
+}
+-- atlas.hcl --
+data "hcl_schema" "app" {
+  paths = fileset("output/**/*.hcl")
+}
+env "output" {
+  schema {
+    src = data.hcl_schema.app.url
+  }
+  dev = "docker://postgres/16/dev"
+}
