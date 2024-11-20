@@ -17,7 +17,7 @@ type (
 	input struct {
 		Input    string `short:"i" help:"Input HCL file to split." type:"existingfile" optional:""`
 		Output   string `short:"o" placeholder:"./path/to/dir" required:"" help:"Destination directory to write the split files." type:"existingdir"`
-		Strategy string `help:"Splitting strategy options:schema,block" enum:"schema,block" default:"schema"`
+		Strategy string `help:"Splitting strategy options:schema,block" enum:"schema,block,resource" default:"schema"`
 	}
 	strategy func(*hcl.File) map[string][]*hclsyntax.Block
 )
@@ -39,11 +39,14 @@ func (i input) strategy() strategy {
 		return splitSchema
 	case "block":
 		return splitBlock
+	case "resource":
+		return splitResource
 	default:
 		return nil
 	}
 }
 
+// Modify the existing split function to create directories
 func split(i input) error {
 	parse := hclparse.NewParser()
 	var (
@@ -73,8 +76,15 @@ func split(i input) error {
 	if splitFn == nil {
 		return fmt.Errorf("unknown splitting strategy %s", i.Strategy)
 	}
-	for f, blocks := range splitFn(file) {
-		outputPath := filepath.Join(i.Output, f)
+	files := splitFn(file)
+	for fileName := range files {
+		dir := filepath.Dir(filepath.Join(i.Output, fileName))
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("creating directory %s: %w", dir, err)
+		}
+	}
+	for fileName, blocks := range files {
+		outputPath := filepath.Join(i.Output, fileName)
 		if err := writeFile(blocks, file, outputPath); err != nil {
 			return err
 		}
@@ -87,14 +97,12 @@ func splitSchema(file *hcl.File) map[string][]*hclsyntax.Block {
 	noSchema := []*hclsyntax.Block{}
 	body := file.Body.(*hclsyntax.Body)
 	var schemas []*hclsyntax.Block
-	// Detect all schemas.
 	for _, block := range body.Blocks {
 		if block.Type == "schema" {
 			schemas = append(schemas, block)
 			schemaBlocks[block.Labels[0]] = []*hclsyntax.Block{block}
 		}
 	}
-	// Arrange all blocks by schema, placing those without a schema in a separate slice.
 	for _, block := range body.Blocks {
 		if block.Type == "schema" {
 			continue
@@ -172,4 +180,33 @@ func writeFile(blocks []*hclsyntax.Block, file *hcl.File, outputPath string) err
 		writeBlock(rootBody, block)
 	}
 	return os.WriteFile(outputPath, f.Bytes(), 0644)
+}
+
+func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
+	body := file.Body.(*hclsyntax.Body)
+
+	schemaBlocks := make(map[string]*hclsyntax.Block)
+	output := make(map[string][]*hclsyntax.Block)
+
+	for _, block := range body.Blocks {
+		if block.Type == "schema" {
+			schemaName := block.Labels[0]
+			schemaBlocks[schemaName] = block
+			schemaPath := fmt.Sprintf("schema_%s/schema.hcl", schemaName)
+			output[schemaPath] = []*hclsyntax.Block{block}
+		}
+	}
+	for _, block := range body.Blocks {
+		if block.Type == "schema" {
+			continue
+		}
+		schemaName, ok := detectSchema(block.Body)
+		if !ok {
+			continue
+		}
+		blockType := block.Type + "s" // pluralize
+		fileName := fmt.Sprintf("schema_%s/%s/%s.hcl", schemaName, blockType, block.Labels[0])
+		output[fileName] = []*hclsyntax.Block{block}
+	}
+	return output
 }
