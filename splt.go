@@ -196,17 +196,22 @@ func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
 			output[schemaPath] = []*hclsyntax.Block{block}
 		}
 	}
+	noSchema := []*hclsyntax.Block{}
 	for _, block := range body.Blocks {
 		if block.Type == "schema" {
 			continue
 		}
 		schemaName, ok := detectSchema(block.Body)
 		if !ok {
+			noSchema = append(noSchema, block)
 			continue
 		}
 		blockType := block.Type + "s" // pluralize
 		fileName := fmt.Sprintf("schema_%s/%s/%s.hcl", schemaName, blockType, block.Labels[0])
 		output[fileName] = []*hclsyntax.Block{block}
+	}
+	if len(noSchema) > 0 {
+		output["main.hcl"] = noSchema
 	}
 	return output
 }
