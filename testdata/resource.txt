@@ -1,11 +1,6 @@
 exec mkdir output
 splt -i schema.hcl -o output --strategy=resource
 
-exec echo $HOME
-
-exec tree output
-exec tree golden
-
 exec atlas schema diff --env output --from file://schema.hcl --to env://schema.src
 stdout 'Schemas are synced'
 
