@@ -153,17 +153,6 @@ table "transactions" {
     type = decimal
   }
 }
--- golden/schema_hello/tables/txns_audit.hcl --
-table "txns_audit" {
-  schema = schema.hello
-  column "order_id" {
-    type = int
-  }
-  column "operation" {
-    type = text
-  }
-}
--- golden/main.hcl --
 trigger "trigger_txns_audit" {
   on = table.transactions
   after {
@@ -172,6 +161,16 @@ trigger "trigger_txns_audit" {
   }
   execute {
     function = function.audit_tx
+  }
+}
+-- golden/schema_hello/tables/txns_audit.hcl --
+table "txns_audit" {
+  schema = schema.hello
+  column "order_id" {
+    type = int
+  }
+  column "operation" {
+    type = text
   }
 }
 -- atlas.hcl --
