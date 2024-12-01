@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type (
@@ -184,10 +185,13 @@ func writeFile(blocks []*hclsyntax.Block, file *hcl.File, outputPath string) err
 
 func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
 	body := file.Body.(*hclsyntax.Body)
-
-	schemaBlocks := make(map[string]*hclsyntax.Block)
-	output := make(map[string][]*hclsyntax.Block)
-
+	var (
+		schemaBlocks = make(map[string]*hclsyntax.Block)
+		tableBlocks  = make(map[string]*hclsyntax.Block)
+		output       = make(map[string][]*hclsyntax.Block)
+		triggers     []*hclsyntax.Block
+		noSchema     []*hclsyntax.Block
+	)
 	for _, block := range body.Blocks {
 		if block.Type == "schema" {
 			schemaName := block.Labels[0]
@@ -195,23 +199,63 @@ func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
 			schemaPath := fmt.Sprintf("schema_%s/schema.hcl", schemaName)
 			output[schemaPath] = []*hclsyntax.Block{block}
 		}
+		if block.Type == "table" {
+			tableBlocks[blockAddr(block)] = block
+		}
 	}
-	noSchema := []*hclsyntax.Block{}
 	for _, block := range body.Blocks {
-		if block.Type == "schema" {
+		switch block.Type {
+		case "schema":
 			continue
+		case "trigger":
+			triggers = append(triggers, block)
+		default:
+			schemaName, ok := detectSchema(block.Body)
+			if !ok {
+				noSchema = append(noSchema, block)
+				continue
+			}
+			blockType := block.Type + "s"
+			tn := block.Labels[len(block.Labels)-1] // Resource blocks may be qualified with schema name.
+			fileName := fmt.Sprintf("schema_%s/%s/%s.hcl", schemaName, blockType, tn)
+			output[fileName] = []*hclsyntax.Block{block}
 		}
-		schemaName, ok := detectSchema(block.Body)
-		if !ok {
-			noSchema = append(noSchema, block)
-			continue
+	}
+	if len(triggers) > 0 {
+		for _, trigger := range triggers {
+			addr, ok := onAddr(file, trigger)
+			if !ok {
+				continue
+			}
+			tableBlock, ok := tableBlocks[addr]
+			if !ok {
+				continue
+			}
+			schemaName, ok := detectSchema(tableBlock.Body)
+			if !ok {
+				continue
+			}
+			fields := strings.Split(addr, ".")
+			tableName := fields[len(fields)-1]
+			fileName := fmt.Sprintf("schema_%s/tables/%s.hcl", schemaName, tableName)
+			output[fileName] = append(output[fileName], trigger)
 		}
-		blockType := block.Type + "s" // pluralize
-		fileName := fmt.Sprintf("schema_%s/%s/%s.hcl", schemaName, blockType, block.Labels[0])
-		output[fileName] = []*hclsyntax.Block{block}
 	}
 	if len(noSchema) > 0 {
 		output["main.hcl"] = noSchema
 	}
 	return output
+}
+
+func blockAddr(b *hclsyntax.Block) string {
+	return fmt.Sprintf("%s.%s", b.Type, strings.Join(b.Labels, "."))
+}
+
+func onAddr(file *hcl.File, b *hclsyntax.Block) (string, bool) {
+	on, ok := b.Body.Attributes["on"]
+	if !ok {
+		return "", false
+	}
+	rng := on.Expr.Range()
+	return string(file.Bytes[rng.Start.Byte:rng.End.Byte]), true
 }
