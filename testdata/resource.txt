@@ -4,6 +4,7 @@ splt -i schema.hcl -o output --strategy=resource
 exec echo $HOME
 
 exec tree output
+exec tree golden
 
 exec atlas schema diff --env output --from file://schema.hcl --to env://schema.src
 stdout 'Schemas are synced'
@@ -51,6 +52,36 @@ table "transactions" {
     type = decimal
   }
 }
+table "txns_audit" {
+    schema = schema.hello
+    column "order_id" {
+        type = int
+    }
+    column "operation" {
+        type = text
+    }
+}
+function "audit_tx" {
+  schema = schema.hello
+  lang   = PLpgSQL
+  return = trigger
+  as     = <<-SQL
+  BEGIN
+    INSERT INTO txns_audit(order_id, operation) VALUES (NEW.order_id, TG_OP);
+    RETURN NEW;
+  END;
+  SQL
+}
+trigger "trigger_txns_audit" {
+  on = table.transactions
+  after {
+    insert    = true
+    update_of = [table.transactions.column.amount]
+  }
+  execute {
+    function = function.audit_tx
+  }
+}
 -- golden/schema_public/schema.hcl --
 schema "public" {
   comment = "This is the public schema"
@@ -80,6 +111,31 @@ function "positive" {
     type = integer
   }
 }
+-- golden/schema_hello/functions/audit_tx.hcl --
+function "audit_tx" {
+  schema = schema.hello
+  lang   = PLpgSQL
+  return = trigger
+  as     = <<-SQL
+  BEGIN
+    INSERT INTO txns_audit(order_id, operation) VALUES (NEW.order_id, TG_OP);
+    RETURN NEW;
+  END;
+  SQL
+}
+-- golden/schema_hello/tables/transactions.hcl --
+table "transactions" {
+  schema = schema.hello
+  column "id" {
+    type = int
+  }
+  column "user_id" {
+    type = int
+  }
+  column "amount" {
+    type = decimal
+  }
+}
 -- golden/schema_hello/schema.hcl --
 schema "hello" {
   comment = "This is the hello schema"
@@ -95,6 +151,27 @@ table "transactions" {
   }
   column "amount" {
     type = decimal
+  }
+}
+-- golden/schema_hello/tables/txns_audit.hcl --
+table "txns_audit" {
+  schema = schema.hello
+  column "order_id" {
+    type = int
+  }
+  column "operation" {
+    type = text
+  }
+}
+-- golden/main.hcl --
+trigger "trigger_txns_audit" {
+  on = table.transactions
+  after {
+    insert    = true
+    update_of = [table.transactions.column.amount]
+  }
+  execute {
+    function = function.audit_tx
   }
 }
 -- atlas.hcl --
