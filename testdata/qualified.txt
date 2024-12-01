@@ -1,0 +1,40 @@
+exec mkdir output
+splt -i schema.hcl -o output --strategy=resource
+exec tree output
+exec atlas schema diff --env output --from file://schema.hcl --to env://schema.src
+stdout 'Schemas are synced'
+-- schema.hcl --
+schema "public" {
+  comment = "This is the hello schema"
+}
+schema "second" {
+  comment = "This is the second schema"
+}
+table "public" "t" {
+  schema = schema.public
+  column "c" {
+    type = int
+  }
+}
+table "public" "t2" {
+  schema = schema.public
+  column "c" {
+    type = int
+  }
+}
+table "second" "t" {
+  schema = schema.second
+  column "c" {
+    type = int
+  }
+}
+-- atlas.hcl --
+data "hcl_schema" "app" {
+  paths = fileset("output/**/*.hcl")
+}
+env "output" {
+  schema {
+    src = data.hcl_schema.app.url
+  }
+  dev = "docker://postgres/16/dev"
+}
