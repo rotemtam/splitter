@@ -1,5 +1,5 @@
 exec mkdir output
-splt -i schema.hcl -o output --strategy=resource
+splt -i schema.hcl -o output --strategy=resource --extension=pg.hcl
 
 exec atlas schema diff --env output --from file://schema.hcl --to env://schema.src
 stdout 'Schemas are synced'
@@ -77,11 +77,11 @@ trigger "trigger_txns_audit" {
     function = function.audit_tx
   }
 }
--- golden/schema_public/schema.hcl --
+-- golden/schema_public/schema.pg.hcl --
 schema "public" {
   comment = "This is the public schema"
 }
--- golden/schema_public/tables/users.hcl --
+-- golden/schema_public/tables/users.pg.hcl --
 table "users" {
   schema = schema.public
   column "id" {
@@ -96,7 +96,7 @@ table "users" {
     ]
   }
 }
--- golden/schema_public/functions/positive.hcl --
+-- golden/schema_public/functions/positive.pg.hcl --
 function "positive" {
   schema = schema.public
   lang   = SQL
@@ -106,7 +106,7 @@ function "positive" {
     type = integer
   }
 }
--- golden/schema_hello/functions/audit_tx.hcl --
+-- golden/schema_hello/functions/audit_tx.pg.hcl --
 function "audit_tx" {
   schema = schema.hello
   lang   = PLpgSQL
@@ -118,7 +118,7 @@ function "audit_tx" {
   END;
   SQL
 }
--- golden/schema_hello/tables/transactions.hcl --
+-- golden/schema_hello/tables/transactions.pg.hcl --
 table "transactions" {
   schema = schema.hello
   column "id" {
@@ -131,11 +131,11 @@ table "transactions" {
     type = decimal
   }
 }
--- golden/schema_hello/schema.hcl --
+-- golden/schema_hello/schema.pg.hcl --
 schema "hello" {
   comment = "This is the hello schema"
 }
--- golden/schema_hello/tables/transactions.hcl --
+-- golden/schema_hello/tables/transactions.pg.hcl --
 table "transactions" {
   schema = schema.hello
   column "id" {
@@ -158,7 +158,7 @@ trigger "trigger_txns_audit" {
     function = function.audit_tx
   }
 }
--- golden/schema_hello/tables/txns_audit.hcl --
+-- golden/schema_hello/tables/txns_audit.pg.hcl --
 table "txns_audit" {
   schema = schema.hello
   column "order_id" {

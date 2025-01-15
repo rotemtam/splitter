@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/rotemtam/splt"
 	"os"
+
+	splitter "github.com/rotemtam/splt"
 )
 
 func main() {
