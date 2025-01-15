@@ -2,12 +2,13 @@ package splitter
 
 import (
 	"fmt"
-	"github.com/mitchellh/go-homedir"
-	"github.com/rogpeppe/go-internal/testscript"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
+
+	"github.com/mitchellh/go-homedir"
+	"github.com/rogpeppe/go-internal/testscript"
 )
 
 func TestMain(m *testing.M) {
