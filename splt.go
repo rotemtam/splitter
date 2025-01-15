@@ -2,7 +2,6 @@ package splitter
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,7 +16,7 @@ import (
 
 type (
 	input struct {
-		Input     string `short:"i" help:"Input HCL file to split." type:"existingfile" optional:""`
+		Input     []byte `short:"i" required:"" help:"Input HCL file to split." type:"filecontent" default:"-"`
 		Output    string `short:"o" placeholder:"./path/to/dir" required:"" help:"Destination directory to write the split files." type:"existingdir"`
 		Strategy  string `help:"Splitting strategy options:schema,block,resource" enum:"schema,block,resource" default:"schema"`
 		Extension string `help:"Output file extension" default:"hcl"`
@@ -51,27 +50,10 @@ func (i input) strategy() strategy {
 
 // Modify the existing split function to create directories
 func split(i input) error {
-	parse := hclparse.NewParser()
-	var (
-		file  *hcl.File
-		diags hcl.Diagnostics
-	)
-	if i.Input != "" {
-		file, diags = parse.ParseHCLFile(i.Input)
-	} else {
-		stat, err := os.Stdin.Stat()
-		if err != nil || (stat.Mode()&os.ModeCharDevice) != 0 {
-			return fmt.Errorf("no input file provided")
-		}
-		all, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf("reading stdin: %w", err)
-		}
-		if len(all) == 0 {
-			return fmt.Errorf("no input provided, provide input via stdin or -i flag")
-		}
-		file, diags = parse.ParseHCL(all, "stdin.hcl")
+	if len(i.Input) == 0 {
+		return fmt.Errorf("no input provided, provide input via stdin or -i flag")
 	}
+	file, diags := hclparse.NewParser().ParseHCL(i.Input, "input.hcl")
 	if diags != nil && diags.HasErrors() {
 		return diags
 	}
