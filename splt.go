@@ -2,23 +2,25 @@ package splitter
 
 import (
 	"fmt"
-	"github.com/alecthomas/kong"
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/alecthomas/kong"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
 type (
 	input struct {
-		Input    string `short:"i" help:"Input HCL file to split." type:"existingfile" optional:""`
-		Output   string `short:"o" placeholder:"./path/to/dir" required:"" help:"Destination directory to write the split files." type:"existingdir"`
-		Strategy string `help:"Splitting strategy options:schema,block" enum:"schema,block,resource" default:"schema"`
+		Input     string `short:"i" help:"Input HCL file to split." type:"existingfile" optional:""`
+		Output    string `short:"o" placeholder:"./path/to/dir" required:"" help:"Destination directory to write the split files." type:"existingdir"`
+		Strategy  string `help:"Splitting strategy options:schema,block,resource" enum:"schema,block,resource" default:"schema"`
+		Extension string `help:"Output file extension" default:"hcl"`
 	}
 	strategy func(*hcl.File) map[string][]*hclsyntax.Block
 )
@@ -85,7 +87,7 @@ func split(i input) error {
 		}
 	}
 	for fileName, blocks := range files {
-		outputPath := filepath.Join(i.Output, fileName)
+		outputPath := filepath.Join(i.Output, fmt.Sprintf("%s.%s", fileName, i.Extension))
 		if err := writeFile(blocks, file, outputPath); err != nil {
 			return err
 		}
@@ -117,10 +119,10 @@ func splitSchema(file *hcl.File) map[string][]*hclsyntax.Block {
 	}
 	output := make(map[string][]*hclsyntax.Block, len(schemas)+1)
 	for name, block := range schemaBlocks {
-		output["schema_"+name+".hcl"] = block
+		output[schemaFile(name)] = block
 	}
 	if len(noSchema) > 0 {
-		output["main.hcl"] = noSchema
+		output["main"] = noSchema
 	}
 	return output
 }
@@ -129,7 +131,7 @@ func splitBlock(file *hcl.File) map[string][]*hclsyntax.Block {
 	body := file.Body.(*hclsyntax.Body)
 	output := make(map[string][]*hclsyntax.Block)
 	for _, block := range body.Blocks {
-		fname := block.Type + ".hcl"
+		fname := block.Type
 		if _, ok := output[fname]; !ok {
 			output[fname] = []*hclsyntax.Block{}
 		}
@@ -196,7 +198,7 @@ func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
 		if block.Type == "schema" {
 			schemaName := block.Labels[0]
 			schemaBlocks[schemaName] = block
-			schemaPath := fmt.Sprintf("schema_%s/schema.hcl", schemaName)
+			schemaPath := filepath.Join(schemaFile(schemaName), "schema")
 			output[schemaPath] = []*hclsyntax.Block{block}
 		}
 		if block.Type == "table" {
@@ -217,7 +219,7 @@ func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
 			}
 			blockType := block.Type + "s"
 			tn := block.Labels[len(block.Labels)-1] // Resource blocks may be qualified with schema name.
-			fileName := fmt.Sprintf("schema_%s/%s/%s.hcl", schemaName, blockType, tn)
+			fileName := filepath.Join(schemaFile(schemaName), blockType, tn)
 			output[fileName] = []*hclsyntax.Block{block}
 		}
 	}
@@ -237,12 +239,12 @@ func splitResource(file *hcl.File) map[string][]*hclsyntax.Block {
 			}
 			fields := strings.Split(addr, ".")
 			tableName := fields[len(fields)-1]
-			fileName := fmt.Sprintf("schema_%s/tables/%s.hcl", schemaName, tableName)
+			fileName := filepath.Join(schemaFile(schemaName), "tables", tableName)
 			output[fileName] = append(output[fileName], trigger)
 		}
 	}
 	if len(noSchema) > 0 {
-		output["main.hcl"] = noSchema
+		output["main"] = noSchema
 	}
 	return output
 }
@@ -258,4 +260,8 @@ func onAddr(file *hcl.File, b *hclsyntax.Block) (string, bool) {
 	}
 	rng := on.Expr.Range()
 	return string(file.Bytes[rng.Start.Byte:rng.End.Byte]), true
+}
+
+func schemaFile(s string) string {
+	return "schema_" + s
 }
